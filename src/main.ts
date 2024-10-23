@@ -9,45 +9,50 @@ app.innerHTML = `
   <h1>${APP_NAME}</h1>
   <div class="canvas-container">
     <canvas id="drawingCanvas" width="256" height="256"></canvas>
+    <button id="undoButton">Undo</button>
+    <button id="redoButton">Redo</button>
     <button id="clearButton">Clear</button>
   </div>
 `;
 
 const canvas = document.querySelector<HTMLCanvasElement>("#drawingCanvas")!;
+const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
+const redoButton = document.querySelector<HTMLButtonElement>("#redoButton")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 const ctx = canvas.getContext("2d");
 
 let drawing = false;
 let paths: { x: number; y: number }[][] = []; // array to store paths of points
+let redoStack: { x: number; y: number }[][] = []; // redo stack
 let currentPath: { x: number; y: number }[] = []; // current drawing path
 
 // draw functions
 function startDrawing(event: MouseEvent) {
   drawing = true;
-  currentPath = []; // clear current path
-  paths.push(currentPath); // add new path to paths array
-  addPointToPath(event); // add the starting point
+  currentPath = []; 
+  paths.push(currentPath); 
+  addPointToPath(event); 
+  redoStack = []; // clear the redo stack on a new path start
 }
 
 function stopDrawing() {
   drawing = false;
 }
 
-// draw function that records points to paths
+// add a point to the current path
 function addPointToPath(event: MouseEvent) {
   if (!drawing) return;
   const rect = canvas.getBoundingClientRect();
   currentPath.push({ x: event.clientX - rect.left, y: event.clientY - rect.top });
-  canvas.dispatchEvent(new Event('drawing-changed')); // dispatch event after adding a point
+  canvas.dispatchEvent(new Event('drawing-changed'));
 }
 
-// drawing changes to update the canvas
+// draw-change listener
 canvas.addEventListener("drawing-changed", () => {
-  ctx?.clearRect(0, 0, canvas.width, canvas.height); // clear canvas
-  ctx?.beginPath(); // reset path
+  ctx?.clearRect(0, 0, canvas.width, canvas.height);
 
-  // redraw based on stored paths
   paths.forEach(path => {
+    ctx?.beginPath();
     path.forEach((point, index) => {
       if (index === 0) {
         ctx?.moveTo(point.x, point.y);
@@ -55,7 +60,7 @@ canvas.addEventListener("drawing-changed", () => {
         ctx?.lineTo(point.x, point.y);
       }
     });
-    ctx?.stroke(); // Apply stroke
+    ctx?.stroke();
   });
 });
 
@@ -64,9 +69,34 @@ canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mousemove", addPointToPath);
 canvas.addEventListener("mouseout", stopDrawing);
 
-// Clear the canvas and paths on button click
+// undo
+undoButton.addEventListener("click", () => {
+  if (paths.length > 0) {
+    const lastPath = paths.pop(); // pop the last path from paths
+    if (lastPath) {
+      redoStack.push(lastPath); // push the path to redo stack
+      canvas.dispatchEvent(new Event('drawing-changed'));
+    }
+  }
+  undoButton.blur();
+});
+
+// redo
+redoButton.addEventListener("click", () => {
+  if (redoStack.length > 0) {
+    const lastRedoPath = redoStack.pop(); // pop the last path from redo stack
+    if (lastRedoPath) {
+      paths.push(lastRedoPath); // add it back to paths
+      canvas.dispatchEvent(new Event('drawing-changed'));
+    }
+  }
+  redoButton.blur();
+});
+
+// clear
 clearButton.addEventListener("click", () => {
-  paths = []; // reset
-  ctx?.clearRect(0, 0, canvas.width, canvas.height); 
+  paths = [];
+  redoStack = [];
+  ctx?.clearRect(0, 0, canvas.width, canvas.height);
   clearButton.blur();
 });
