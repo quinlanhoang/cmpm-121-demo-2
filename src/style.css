@@ -42,6 +42,12 @@ h1 {
   text-align: center;
 }
 
+#drawingCanvas {
+  border: 1px solid black;
+  border-radius: 10px; /* rounded corners */
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3); /*drop shadow */
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
