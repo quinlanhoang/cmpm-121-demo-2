@@ -13,59 +13,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  justify-content: center;   
+  align-items: center;        
+  height: 100vh;              
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
   text-align: center;
+}
+
+.canvas-container {
+  display: flex;
+  gap: 20px;                  
+  align-items: center;
 }
 
 #drawingCanvas {
   border: 1px solid black;
-  border-radius: 10px; /* rounded corners */
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3); /*drop shadow */
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #3178c6aa);
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  border-radius: 10px;        /* rounded corners */
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3); /* drop shadow */
 }
 
 button {
@@ -84,7 +53,7 @@ button:hover {
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: none; 
 }
 
 @media (prefers-color-scheme: light) {
@@ -92,10 +61,10 @@ button:focus-visible {
     color: #213547;
     background-color: #ffffff;
   }
-  a:hover {
-    color: #747bff;
-  }
   button {
     background-color: #f9f9f9;
+  }
+  a:hover {
+    color: #747bff;
   }
 }
