@@ -11,10 +11,11 @@ const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 const thinButton = document.querySelector<HTMLButtonElement>("#thinButton")!;
 const thickButton = document.querySelector<HTMLButtonElement>("#thickButton")!;
 const addStickerButton = document.querySelector<HTMLButtonElement>("#addStickerButton")!;
+const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!; 
 const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
 const ctx = canvas.getContext("2d");
 
-// command interface 
+// command interface
 type Command = {
   execute: (ctx: CanvasRenderingContext2D, x: number, y: number) => void;
 };
@@ -102,9 +103,9 @@ class Sticker implements Drawable {
 
   public display(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.globalAlpha = 1.0; 
+    ctx.globalAlpha = 1.0;
     ctx.font = '24px serif';
-    ctx.fillStyle = '#000'; 
+    ctx.fillStyle = '#000';
     ctx.fillText(this.emoji, this.x, this.y);
     ctx.restore();
   }
@@ -118,10 +119,10 @@ class PlaceStickerCommand implements Command {
   }
 
   execute(ctx: CanvasRenderingContext2D, x: number, y: number) {
-    ctx.save(); 
-    ctx.globalAlpha = 1.0; 
+    ctx.save();
+    ctx.globalAlpha = 1.0;
     ctx.font = '24px serif';
-    ctx.fillStyle = '#000'; 
+    ctx.fillStyle = '#000';
     ctx.fillText(this.emoji, x, y);
     ctx.restore();
   }
@@ -129,7 +130,7 @@ class PlaceStickerCommand implements Command {
 
 // merge drawing state and tools
 let drawing = false;
-let drawables: Drawable[] = []; 
+let drawables: Drawable[] = [];
 let redoStack: Drawable[] = [];
 let currentLine: MarkerLine | null = null;
 let currentThickness = 2;
@@ -225,12 +226,14 @@ undoButton.addEventListener("click", () => {
 // redo
 redoButton.addEventListener("click", () => {
   if (redoStack.length > 0) {
-    redoStack.pop();
-    canvas.dispatchEvent(new Event("drawing-changed"));
+    const lastUndo = redoStack.pop();
+    if (lastUndo) {
+      drawables.push(lastUndo);
+      canvas.dispatchEvent(new Event("drawing-changed"));
+    }
   }
   redoButton.blur();
 });
-
 
 // clear
 clearButton.addEventListener("click", () => {
@@ -240,11 +243,40 @@ clearButton.addEventListener("click", () => {
   clearButton.blur();
 });
 
+// export canvas to PNG
+exportButton.addEventListener("click", () => {
+  
+  // create a new canvas to export the current drawing
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d");
+
+  if (exportCtx) {
+   
+    // calculate scaling factor
+    const scaleFactor = 1024 / canvas.width;
+    exportCtx.scale(scaleFactor, scaleFactor);
+
+    // draw each drawable on the new canvas
+    drawables.forEach(drawable => drawable.display(exportCtx));
+
+    // convert canvas to PNG
+    const pngURL = exportCanvas.toDataURL("image/png");
+
+    // create a download element and initiate a download
+    const downloadLink = document.createElement("a");
+    downloadLink.href = pngURL;
+    downloadLink.download = "sketchpad_export.png";
+    downloadLink.click();
+  }
+});
+
 // thin thickness
 thinButton.addEventListener("click", () => {
   currentThickness = 2;
   toolPreview = new ToolPreview(currentThickness);
-  activeStickerCommand = null;  
+  activeStickerCommand = null;
   updateToolSelection(thinButton);
 });
 
@@ -252,7 +284,7 @@ thinButton.addEventListener("click", () => {
 thickButton.addEventListener("click", () => {
   currentThickness = 8;
   toolPreview = new ToolPreview(currentThickness);
-  activeStickerCommand = null;  
+  activeStickerCommand = null;
   updateToolSelection(thickButton);
 });
 
