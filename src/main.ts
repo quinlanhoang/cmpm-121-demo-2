@@ -2,7 +2,7 @@
 import "./style.css";
 
 // sticker array
-let stickers = ["😀", "🥳", "🎉"];
+let stickers = ["😀", "🥳", "🎉","🔥","🦁"];
 
 const canvas = document.querySelector<HTMLCanvasElement>("#drawingCanvas")!;
 const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
