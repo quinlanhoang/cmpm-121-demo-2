@@ -16,9 +16,9 @@
 body {
   margin: 0;
   display: flex;
-  justify-content: center;   
-  align-items: center;        
-  height: 100vh;              
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 
 #app {
@@ -27,16 +27,16 @@ body {
 
 .canvas-container {
   display: flex;
-  flex-direction: column; /* stack buttons vertically */
+  flex-direction: column; 
   align-items: center;
-  gap: 10px;         
+  gap: 10px;
 }
 
 #drawingCanvas {
   border: 1px solid black;
-  border-radius: 10px;        
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3); 
-  margin-bottom: 20px; 
+  border-radius: 10px;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+  margin-bottom: 20px;
 }
 
 button {
@@ -50,12 +50,38 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
 button:hover {
   border-color: #646cff;
 }
+
 button:focus,
 button:focus-visible {
-  outline: none; 
+  outline: none;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px; 
+}
+
+.tool-button {
+  border-radius: 8px;
+  padding: 0.6em 1.2em;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+/* highlight the selected tool button */
+.selectedTool {
+  border-color: #ffa500; 
+  background-color: #333; 
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
 }
 
 @media (prefers-color-scheme: light) {
