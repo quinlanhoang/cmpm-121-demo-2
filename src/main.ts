@@ -61,11 +61,43 @@ class MarkerLine {
   }
 }
 
+class ToolPreview {
+  private x: number;
+  private y: number;
+  private thickness: number;
+
+  constructor(thickness: number) {
+    this.x = 0;
+    this.y = 0;
+    this.thickness = thickness;
+  }
+
+  // update position of the preview
+  public updatePosition(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  // render the preview on the canvas
+  public display(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
+    
+    // preview circle
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; 
+    ctx.strokeStyle = '#ff0000';           
+    ctx.lineWidth = 2;                    
+    ctx.fill();
+    ctx.stroke();                        
+  }
+}
+
 let drawing = false;
 let paths: MarkerLine[] = []; // store MarkerLine objects
 let redoStack: MarkerLine[] = []; // redo stack
 let currentLine: MarkerLine | null = null;
 let currentThickness = 2; // default thickness is thin
+let toolPreview: ToolPreview | null = new ToolPreview(currentThickness);
 
 // start drawing a new line
 function startDrawing(event: MouseEvent) {
@@ -74,12 +106,14 @@ function startDrawing(event: MouseEvent) {
   currentLine = new MarkerLine(event.clientX - rect.left, event.clientY - rect.top, currentThickness);
   paths.push(currentLine);
   redoStack = []; // clear the redo stack on a new line start
+  toolPreview = null; // hide tool preview while drawing
 }
 
 // stop drawing
 function stopDrawing() {
   drawing = false;
   currentLine = null;
+  toolPreview = new ToolPreview(currentThickness); // show tool preview again after drawing
 }
 
 // add a point to the current line
@@ -90,18 +124,35 @@ function addPointToLine(event: MouseEvent) {
   canvas.dispatchEvent(new Event("drawing-changed"));
 }
 
-// redraw all lines on the canvas
+// update tool preview position
+function updateToolPreview(event: MouseEvent) {
+  if (!drawing && toolPreview) {
+    const rect = canvas.getBoundingClientRect();
+    toolPreview.updatePosition(event.clientX - rect.left, event.clientY - rect.top);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
+}
+
+// redraw all lines on the canvas, including tool preview
 canvas.addEventListener("drawing-changed", () => {
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
 
   paths.forEach(line => {
     line.display(ctx!);
   });
+
+  // Display the tool preview if available
+  if (toolPreview) {
+    toolPreview.display(ctx!);
+  }
 });
 
 canvas.addEventListener("mousedown", startDrawing);
 canvas.addEventListener("mouseup", stopDrawing);
-canvas.addEventListener("mousemove", addPointToLine);
+canvas.addEventListener("mousemove", (event) => {
+  addPointToLine(event);
+  updateToolPreview(event);
+});
 canvas.addEventListener("mouseout", stopDrawing);
 
 // undo
@@ -138,12 +189,14 @@ clearButton.addEventListener("click", () => {
 
 // marker tool selection
 thinButton.addEventListener("click", () => {
-  currentThickness = 2; // thin marker or default
+  currentThickness = 2; // thin marker
+  toolPreview = new ToolPreview(currentThickness); // update tool preview thickness
   updateToolSelection(thinButton);
 });
 
 thickButton.addEventListener("click", () => {
   currentThickness = 8; // thick marker
+  toolPreview = new ToolPreview(currentThickness); // update tool preview thickness
   updateToolSelection(thickButton);
 });
 
