@@ -1,29 +1,8 @@
 // main.ts
 import "./style.css";
 
-// basic setup
-const APP_NAME = "Sticker Sketchpad";
-const app = document.querySelector<HTMLDivElement>("#app")!;
-
-document.title = APP_NAME;
-app.innerHTML = `
-  <h1>${APP_NAME}</h1>
-  <div class="canvas-container">
-    <div class="toolbar">
-      <button id="thinButton" class="tool-button">Thin Marker</button>
-      <button id="thickButton" class="tool-button">Thick Marker</button>
-      <button id="stickerButton1" class="tool-button">😀</button>
-      <button id="stickerButton2" class="tool-button">🥳</button>
-      <button id="stickerButton3" class="tool-button">🎉</button>
-    </div>
-    <canvas id="drawingCanvas" width="256" height="256"></canvas>
-    <div class="controls">
-      <button id="undoButton">Undo</button>
-      <button id="redoButton">Redo</button>
-      <button id="clearButton">Clear</button>
-    </div>
-  </div>
-`;
+// sticker array
+let stickers = ["😀", "🥳", "🎉"];
 
 const canvas = document.querySelector<HTMLCanvasElement>("#drawingCanvas")!;
 const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
@@ -31,19 +10,21 @@ const redoButton = document.querySelector<HTMLButtonElement>("#redoButton")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 const thinButton = document.querySelector<HTMLButtonElement>("#thinButton")!;
 const thickButton = document.querySelector<HTMLButtonElement>("#thickButton")!;
+const addStickerButton = document.querySelector<HTMLButtonElement>("#addStickerButton")!;
+const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
 const ctx = canvas.getContext("2d");
 
-// command interface for executing different actions
+// command interface 
 type Command = {
   execute: (ctx: CanvasRenderingContext2D, x: number, y: number) => void;
 };
 
-// drawable interface for elements that can be displayed on the canvas
+// interface for displayable elements on canvas
 interface Drawable {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-// represents a line drawn with the marker tool
+// represents lines drawn with marker tool
 class MarkerLine implements Drawable {
   private points: { x: number; y: number }[] = [];
   private thickness: number;
@@ -53,12 +34,10 @@ class MarkerLine implements Drawable {
     this.thickness = thickness;
   }
 
-  // adds a point to the line as the marker drags
   public drag(x: number, y: number) {
     this.points.push({ x, y });
   }
 
-  // render the line on the canvas
   public display(ctx: CanvasRenderingContext2D) {
     if (this.points.length === 0) return;
 
@@ -75,7 +54,7 @@ class MarkerLine implements Drawable {
   }
 }
 
-// handles tool previewing during drawing
+// tool previewing during drawing
 class ToolPreview {
   private x: number;
   private y: number;
@@ -110,7 +89,6 @@ class ToolPreview {
   }
 }
 
-// represents a sticker on the canvas
 class Sticker implements Drawable {
   private emoji: string;
   private x: number;
@@ -122,7 +100,6 @@ class Sticker implements Drawable {
     this.y = y;
   }
 
-    // render the sticker on the canvas
   public display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.globalAlpha = 1.0; 
@@ -146,11 +123,11 @@ class PlaceStickerCommand implements Command {
     ctx.font = '24px serif';
     ctx.fillStyle = '#000'; 
     ctx.fillText(this.emoji, x, y);
-    ctx.restore(); // restore settings to prevent affecting other draws
+    ctx.restore();
   }
 }
 
-// variables to manage drawing state and tool usage
+// merge drawing state and tools
 let drawing = false;
 let drawables: Drawable[] = []; 
 let redoStack: Drawable[] = [];
@@ -159,34 +136,53 @@ let currentThickness = 2;
 let toolPreview: ToolPreview | null = new ToolPreview(currentThickness);
 let activeStickerCommand: Command | null = null;
 
-// event handler for starting line drawing
+// initalizes sticker button
+function createStickerButtons() {
+  stickerContainer.innerHTML = ""; // clear existing buttons
+  stickers.forEach(emoji => {
+    const button = document.createElement("button");
+    button.textContent = emoji;
+    button.className = "tool-button";
+    button.addEventListener("click", () => setStickerMode(new PlaceStickerCommand(emoji)));
+    stickerContainer.appendChild(button);
+  });
+}
+
+createStickerButtons(); // initialize with default stickers
+
+addStickerButton.addEventListener("click", () => {
+  const customSticker = prompt("Enter a custom sticker emoji:");
+  if (customSticker) {
+    stickers.push(customSticker); // adds new sticker to array
+    createStickerButtons(); // creates button for custom sticker
+  }
+});
+
 function startDrawing(event: MouseEvent) {
-  if (activeStickerCommand) return;  // disable if sticker mode is active
+  if (activeStickerCommand) return;
 
   drawing = true;
   const rect = canvas.getBoundingClientRect();
   currentLine = new MarkerLine(event.clientX - rect.left, event.clientY - rect.top, currentThickness);
   drawables.push(currentLine);
-  redoStack = [];
+  redoStack = []; // clear redo stack when drawing a new line
   toolPreview?.setActive(false);
 }
 
-// event handler for stopping line drawing
 function stopDrawing() {
   drawing = false;
   currentLine = null;
   toolPreview?.setActive(true);
 }
 
-// event handler for adding points to the current line
 function addPointToLine(event: MouseEvent) {
-  if (!drawing || !currentLine) return;
+  if (!drawing || !currentLine) return; // ensures drawing and line state are valid
   const rect = canvas.getBoundingClientRect();
   currentLine?.drag(event.clientX - rect.left, event.clientY - rect.top);
   canvas.dispatchEvent(new Event("drawing-changed"));
 }
 
-// Update the tool preview position
+// update tool preview position
 function updateToolPreview(event: MouseEvent) {
   if (!drawing && toolPreview) {
     const rect = canvas.getBoundingClientRect();
@@ -195,14 +191,13 @@ function updateToolPreview(event: MouseEvent) {
   }
 }
 
-// redraw the canvas whenever a change occurs
+// redraws canvas when a change occurs
 canvas.addEventListener("drawing-changed", () => {
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
   drawables.forEach(element => element.display(ctx!));
   toolPreview?.display(ctx!);
 });
 
-// attach event listeners for user interactions
 canvas.addEventListener("mousedown", startDrawing);
 canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mousemove", (event) => {
@@ -230,14 +225,12 @@ undoButton.addEventListener("click", () => {
 // redo
 redoButton.addEventListener("click", () => {
   if (redoStack.length > 0) {
-    const lastRedoLine = redoStack.pop();
-    if (lastRedoLine) {
-      drawables.push(lastRedoLine);
-      canvas.dispatchEvent(new Event("drawing-changed"));
-    }
+    redoStack.pop();
+    canvas.dispatchEvent(new Event("drawing-changed"));
   }
   redoButton.blur();
 });
+
 
 // clear
 clearButton.addEventListener("click", () => {
@@ -263,52 +256,34 @@ thickButton.addEventListener("click", () => {
   updateToolSelection(thickButton);
 });
 
-// update visual feedback for selected tool
 function updateToolSelection(selectedButton: HTMLButtonElement) {
   thinButton.classList.remove("selectedTool");
   thickButton.classList.remove("selectedTool");
   selectedButton.classList.add("selectedTool");
 }
 
-// first sticker set
-document.querySelector("#stickerButton1")!.addEventListener("click", () => {
-  setStickerMode(new PlaceStickerCommand('😀'));
-});
-
-// second sticker set
-document.querySelector("#stickerButton2")!.addEventListener("click", () => {
-  setStickerMode(new PlaceStickerCommand('🥳'));
-});
-
-// third sticker set
-document.querySelector("#stickerButton3")!.addEventListener("click", () => {
-  setStickerMode(new PlaceStickerCommand('🎉'));
-});
-
-// set sticker mode
+// switches to sticker mode
 function setStickerMode(command: Command) {
   activeStickerCommand = command;
   toolPreview?.setActive(false);
   fireToolMovedEvent();
 }
 
-// handle sticker preview and placement
 function applyStickerCommand(event: MouseEvent) {
   const rect = canvas.getBoundingClientRect();
 
-  // preview sticker while moving the mouse
   const handleMouseMove = (e: MouseEvent) => {
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
     drawables.forEach(element => element.display(ctx!));
-    if (ctx && activeStickerCommand) {
+    if (ctx && activeStickerCommand && activeStickerCommand instanceof PlaceStickerCommand) {
       activeStickerCommand.execute(ctx, e.clientX - rect.left, e.clientY - rect.top);
     }
   };
 
-  // finalize sticker placement on mouseup
   const handleMouseUp = (e: MouseEvent) => {
-    if (ctx && activeStickerCommand) {
-      const sticker = new Sticker(activeStickerCommand.emoji, e.clientX - rect.left, e.clientY - rect.top);
+    if (ctx && activeStickerCommand && activeStickerCommand instanceof PlaceStickerCommand) {
+      const { emoji } = activeStickerCommand;
+      const sticker = new Sticker(emoji, e.clientX - rect.left, e.clientY - rect.top);
       drawables.push(sticker);
       canvas.dispatchEvent(new Event("drawing-changed"));
     }
@@ -322,10 +297,10 @@ function applyStickerCommand(event: MouseEvent) {
   fireToolMovedEvent();
 }
 
-// custom event to signal a change in tool state
+// signal a change to tool state
 function fireToolMovedEvent() {
   canvas.dispatchEvent(new Event("tool-moved"));
 }
 
-// initialize tool selection
+// defaults to thin marker
 updateToolSelection(thinButton);

@@ -1,11 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sticker Sketchpad</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Sticker Sketchpad</h1>
+    <div class="toolbar">
+      <button id="thinButton" class="tool-button">Thin Marker</button>
+      <button id="thickButton" class="tool-button">Thick Marker</button>
+      <button id="addStickerButton">Add Custom Sticker</button>
+    </div>
+    <div class="canvas-container">
+      <div id="stickerContainer" class="sticker-panel"></div>
+      <canvas id="drawingCanvas" width="256" height="256"></canvas>
+    </div>
+    <div class="controls">
+      <button id="undoButton">Undo</button>
+      <button id="redoButton">Redo</button>
+      <button id="clearButton">Clear</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
 </html>
