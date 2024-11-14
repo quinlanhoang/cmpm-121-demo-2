@@ -1,7 +1,8 @@
 {
   "version": "4",
   "specifiers": {
-    "npm:vite@*": "5.4.8"
+    "npm:vite@*": "5.4.8",
+    "npm:vite@5.4.8": "5.4.8"
   },
   "npm": {
     "@esbuild/aix-ppc64@0.21.5": {
