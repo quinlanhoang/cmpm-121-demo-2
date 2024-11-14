@@ -1,8 +1,9 @@
-// main.ts
 import "./style.css";
 
-// sticker array
-let stickers = ["😀", "🥳", "🎉","🔥","🦁"];
+// sticker array with initial emojis
+let stickers = ["😀", "🥳", "🎉", "🔥", "🦁"];
+let currentColor = getRandomColor();
+let currentRotation = 0; // default rotation
 
 const canvas = document.querySelector<HTMLCanvasElement>("#drawingCanvas")!;
 const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
@@ -11,7 +12,7 @@ const clearButton = document.querySelector<HTMLButtonElement>("#clearButton")!;
 const thinButton = document.querySelector<HTMLButtonElement>("#thinButton")!;
 const thickButton = document.querySelector<HTMLButtonElement>("#thickButton")!;
 const addStickerButton = document.querySelector<HTMLButtonElement>("#addStickerButton")!;
-const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!; 
+const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!;
 const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
 const ctx = canvas.getContext("2d");
 
@@ -29,10 +30,12 @@ interface Drawable {
 class MarkerLine implements Drawable {
   private points: { x: number; y: number }[] = [];
   private thickness: number;
+  private color: string;
 
-  constructor(initialX: number, initialY: number, thickness: number) {
+  constructor(initialX: number, initialY: number, thickness: number, color: string) {
     this.points.push({ x: initialX, y: initialY });
     this.thickness = thickness;
+    this.color = color;
   }
 
   public drag(x: number, y: number) {
@@ -44,6 +47,7 @@ class MarkerLine implements Drawable {
 
     ctx.beginPath();
     ctx.lineWidth = this.thickness;
+    ctx.strokeStyle = this.color;
     this.points.forEach((point, index) => {
       if (index === 0) {
         ctx.moveTo(point.x, point.y);
@@ -61,11 +65,13 @@ class ToolPreview {
   private y: number;
   private thickness: number;
   private isActive: boolean = true;
+  private color: string;
 
-  constructor(thickness: number) {
+  constructor(thickness: number, color: string) {
     this.x = 0;
     this.y = 0;
     this.thickness = thickness;
+    this.color = color;
   }
 
   public setActive(isActive: boolean) {
@@ -82,7 +88,7 @@ class ToolPreview {
 
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillStyle = this.color;
     ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = 2;
     ctx.fill();
@@ -90,24 +96,36 @@ class ToolPreview {
   }
 }
 
+// represents a sticker on the canvas
 class Sticker implements Drawable {
   private emoji: string;
   private x: number;
   private y: number;
+  private rotation: number;
 
-  constructor(emoji: string, x: number, y: number) {
+  constructor(emoji: string, x: number, y: number, rotation: number) {
     this.emoji = emoji;
     this.x = x;
     this.y = y;
+    this.rotation = rotation;
   }
 
   public display(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.globalAlpha = 1.0;
+    ctx.translate(this.x, this.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
     ctx.font = '24px serif';
     ctx.fillStyle = '#000';
-    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.fillText(this.emoji, 0, 0);
     ctx.restore();
+  }
+
+  public getRotation(): number {
+    return this.rotation;
+  }
+
+  public setRotation(rotation: number) {
+    this.rotation = rotation;
   }
 }
 
@@ -120,10 +138,11 @@ class PlaceStickerCommand implements Command {
 
   execute(ctx: CanvasRenderingContext2D, x: number, y: number) {
     ctx.save();
-    ctx.globalAlpha = 1.0;
+    ctx.translate(x, y);
+    ctx.rotate((currentRotation * Math.PI) / 180); // apply current rotation
     ctx.font = '24px serif';
     ctx.fillStyle = '#000';
-    ctx.fillText(this.emoji, x, y);
+    ctx.fillText(this.emoji, 0, 0);
     ctx.restore();
   }
 }
@@ -134,10 +153,10 @@ let drawables: Drawable[] = [];
 let redoStack: Drawable[] = [];
 let currentLine: MarkerLine | null = null;
 let currentThickness = 2;
-let toolPreview: ToolPreview | null = new ToolPreview(currentThickness);
+let toolPreview: ToolPreview | null = new ToolPreview(currentThickness, currentColor);
 let activeStickerCommand: Command | null = null;
 
-// initalizes sticker button
+// initializes sticker buttons
 function createStickerButtons() {
   stickerContainer.innerHTML = ""; // clear existing buttons
   stickers.forEach(emoji => {
@@ -154,30 +173,32 @@ createStickerButtons(); // initialize with default stickers
 addStickerButton.addEventListener("click", () => {
   const customSticker = prompt("Enter a custom sticker emoji:");
   if (customSticker) {
-    stickers.push(customSticker); // adds new sticker to array
-    createStickerButtons(); // creates button for custom sticker
+    stickers.push(customSticker);
+    createStickerButtons(); // recreate sticker buttons with new addition
   }
 });
 
 function startDrawing(event: MouseEvent) {
-  if (activeStickerCommand) return;
+  if (activeStickerCommand) return; // skip if in sticker mode
 
   drawing = true;
   const rect = canvas.getBoundingClientRect();
-  currentLine = new MarkerLine(event.clientX - rect.left, event.clientY - rect.top, currentThickness);
+  currentLine = new MarkerLine(event.clientX - rect.left, event.clientY - rect.top, currentThickness, currentColor);
   drawables.push(currentLine);
-  redoStack = []; // clear redo stack when drawing a new line
+  redoStack = [];
   toolPreview?.setActive(false);
+  randomizeNextTool(); // randomizes color/rotation for the next use
 }
 
 function stopDrawing() {
   drawing = false;
   currentLine = null;
   toolPreview?.setActive(true);
+  randomizeNextTool();
 }
 
 function addPointToLine(event: MouseEvent) {
-  if (!drawing || !currentLine) return; // ensures drawing and line state are valid
+  if (!drawing || !currentLine) return;
   const rect = canvas.getBoundingClientRect();
   currentLine?.drag(event.clientX - rect.left, event.clientY - rect.top);
   canvas.dispatchEvent(new Event("drawing-changed"));
@@ -210,6 +231,26 @@ canvas.addEventListener("mousemove", (event) => {
   }
 });
 canvas.addEventListener("mouseout", stopDrawing);
+
+// rotate current sticker on pressing R key
+window.addEventListener("keydown", (event) => {
+  if ((event.key === 'R' || event.key === 'r') && activeStickerCommand instanceof PlaceStickerCommand) {
+    currentRotation = (currentRotation + 90) % 360; // rotate the active tool preview
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
+});
+
+// utility function to generate random rainbow color
+function getRandomColor(): string {
+  const hue = Math.floor(Math.random() * 360); // full spectrum
+  return `hsl(${hue}, 100%, 50%)`; // full saturation and medium lightness for bright colors
+}
+
+// utility function for randomizing tool attributes
+function randomizeNextTool() {
+  currentColor = getRandomColor();
+  toolPreview = new ToolPreview(currentThickness, currentColor); // update preview with new color
+}
 
 // undo
 undoButton.addEventListener("click", () => {
@@ -245,26 +286,17 @@ clearButton.addEventListener("click", () => {
 
 // export canvas to PNG
 exportButton.addEventListener("click", () => {
-  
-  // create a new canvas to export the current drawing
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = 1024;
   exportCanvas.height = 1024;
   const exportCtx = exportCanvas.getContext("2d");
 
   if (exportCtx) {
-   
-    // calculate scaling factor
     const scaleFactor = 1024 / canvas.width;
     exportCtx.scale(scaleFactor, scaleFactor);
-
-    // draw each drawable on the new canvas
     drawables.forEach(drawable => drawable.display(exportCtx));
 
-    // convert canvas to PNG
     const pngURL = exportCanvas.toDataURL("image/png");
-
-    // create a download element and initiate a download
     const downloadLink = document.createElement("a");
     downloadLink.href = pngURL;
     downloadLink.download = "sketchpad_export.png";
@@ -275,29 +307,37 @@ exportButton.addEventListener("click", () => {
 // thin thickness
 thinButton.addEventListener("click", () => {
   currentThickness = 2;
-  toolPreview = new ToolPreview(currentThickness);
   activeStickerCommand = null;
-  updateToolSelection(thinButton);
+  highlightButton(thinButton);
+  randomizeNextTool(); 
 });
 
 // thick thickness
 thickButton.addEventListener("click", () => {
   currentThickness = 8;
-  toolPreview = new ToolPreview(currentThickness);
   activeStickerCommand = null;
-  updateToolSelection(thickButton);
+  highlightButton(thickButton);
+  randomizeNextTool(); 
 });
 
-function updateToolSelection(selectedButton: HTMLButtonElement) {
+// highlight button when selected
+function highlightButton(button: HTMLButtonElement) {
   thinButton.classList.remove("selectedTool");
   thickButton.classList.remove("selectedTool");
-  selectedButton.classList.add("selectedTool");
+
+  const allStickers = document.querySelectorAll(".sticker-panel .tool-button");
+  allStickers.forEach(sticker => sticker.classList.remove("selectedTool"));
+  
+  button.classList.add("selectedTool");
 }
 
 // switches to sticker mode
 function setStickerMode(command: Command) {
   activeStickerCommand = command;
   toolPreview?.setActive(false);
+  const stickerButtons = document.querySelectorAll(".sticker-panel .tool-button");
+  stickerButtons.forEach(button => button.classList.remove("selectedTool"));
+  highlightButton(event.target as HTMLButtonElement);
   fireToolMovedEvent();
 }
 
@@ -315,7 +355,7 @@ function applyStickerCommand(event: MouseEvent) {
   const handleMouseUp = (e: MouseEvent) => {
     if (ctx && activeStickerCommand && activeStickerCommand instanceof PlaceStickerCommand) {
       const { emoji } = activeStickerCommand;
-      const sticker = new Sticker(emoji, e.clientX - rect.left, e.clientY - rect.top);
+      const sticker = new Sticker(emoji, e.clientX - rect.left, e.clientY - rect.top, currentRotation);
       drawables.push(sticker);
       canvas.dispatchEvent(new Event("drawing-changed"));
     }

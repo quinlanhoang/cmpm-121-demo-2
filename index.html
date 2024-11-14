@@ -12,10 +12,13 @@
     <div class="toolbar">
       <button id="thinButton" class="tool-button">Thin Marker</button>
       <button id="thickButton" class="tool-button">Thick Marker</button>
-      <button id="addStickerButton">Add Custom Sticker</button>
+      <button id="addStickerButton" class="tool-button">Add Custom Sticker</button>
     </div>
     <div class="canvas-container">
-      <div id="stickerContainer" class="sticker-panel"></div>
+      <div id="stickerContainerParent" style="display: flex; flex-direction: column; align-items: center;">
+        <p style="margin: 5px 0; font-weight: bold;">Press R to rotate stickers</p> 
+        <div id="stickerContainer" class="sticker-panel"></div>
+      </div>
       <canvas id="drawingCanvas" width="384" height="384"></canvas>
     </div>
     <div class="controls">
@@ -27,4 +30,3 @@
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
-</html>
