@@ -1,7 +1,7 @@
 import "./style.css";
 
 // sticker array with initial emojis
-let stickers = ["😀", "🥳", "🎉", "🔥", "🦁"];
+const stickers = ["😀", "🥳", "🎉", "🔥", "🦁"];
 let currentColor = getRandomColor();
 let currentRotation = 0; // default rotation
 
@@ -145,6 +145,10 @@ class PlaceStickerCommand implements Command {
     ctx.fillText(this.emoji, 0, 0);
     ctx.restore();
   }
+  
+  public getEmoji() {
+    return this.emoji;
+  }
 }
 
 // merge drawing state and tools
@@ -163,7 +167,8 @@ function createStickerButtons() {
     const button = document.createElement("button");
     button.textContent = emoji;
     button.className = "tool-button";
-    button.addEventListener("click", () => setStickerMode(new PlaceStickerCommand(emoji)));
+    button.addEventListener("click", (event) =>
+      setStickerMode(new PlaceStickerCommand(emoji), event));
     stickerContainer.appendChild(button);
   });
 }
@@ -224,7 +229,7 @@ canvas.addEventListener("mousedown", startDrawing);
 canvas.addEventListener("mouseup", stopDrawing);
 canvas.addEventListener("mousemove", (event) => {
   if (activeStickerCommand) {
-    applyStickerCommand(event);
+    applyStickerCommand();
   } else {
     addPointToLine(event);
     updateToolPreview(event);
@@ -233,7 +238,7 @@ canvas.addEventListener("mousemove", (event) => {
 canvas.addEventListener("mouseout", stopDrawing);
 
 // rotate current sticker on pressing R key
-window.addEventListener("keydown", (event) => {
+globalThis.addEventListener("keydown", (event) => {
   if ((event.key === 'R' || event.key === 'r') && activeStickerCommand instanceof PlaceStickerCommand) {
     currentRotation = (currentRotation + 90) % 360; // rotate the active tool preview
     canvas.dispatchEvent(new Event("drawing-changed"));
@@ -332,16 +337,18 @@ function highlightButton(button: HTMLButtonElement) {
 }
 
 // switches to sticker mode
-function setStickerMode(command: Command) {
+function setStickerMode(command: Command, event?: Event) {
   activeStickerCommand = command;
   toolPreview?.setActive(false);
   const stickerButtons = document.querySelectorAll(".sticker-panel .tool-button");
   stickerButtons.forEach(button => button.classList.remove("selectedTool"));
-  highlightButton(event.target as HTMLButtonElement);
+  if (event !== undefined) {
+    highlightButton(event.target as HTMLButtonElement);
+  }
   fireToolMovedEvent();
 }
 
-function applyStickerCommand(event: MouseEvent) {
+function applyStickerCommand() {
   const rect = canvas.getBoundingClientRect();
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -354,7 +361,7 @@ function applyStickerCommand(event: MouseEvent) {
 
   const handleMouseUp = (e: MouseEvent) => {
     if (ctx && activeStickerCommand && activeStickerCommand instanceof PlaceStickerCommand) {
-      const { emoji } = activeStickerCommand;
+      const emoji = activeStickerCommand.getEmoji();
       const sticker = new Sticker(emoji, e.clientX - rect.left, e.clientY - rect.top, currentRotation);
       drawables.push(sticker);
       canvas.dispatchEvent(new Event("drawing-changed"));
@@ -375,4 +382,4 @@ function fireToolMovedEvent() {
 }
 
 // defaults to thin marker
-updateToolSelection(thinButton);
+thinButton.click();
