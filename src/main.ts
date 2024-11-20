@@ -1,10 +1,11 @@
 import "./style.css";
 
+/*
+ * Globals
+ */
+
 // sticker array with initial emojis
 const stickers = ["😀", "🥳", "🎉", "🔥", "🦁"];
-let currentColor = getRandomColor();
-let currentRotation = 0; // default rotation
-
 const canvas = document.querySelector<HTMLCanvasElement>("#drawingCanvas")!;
 const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
 const redoButton = document.querySelector<HTMLButtonElement>("#redoButton")!;
@@ -15,6 +16,21 @@ const addStickerButton = document.querySelector<HTMLButtonElement>("#addStickerB
 const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!;
 const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
 const ctx = canvas.getContext("2d");
+
+// merge drawing state and tools
+let currentColor: string;
+let currentRotation: number;
+let drawing: boolean;
+let drawables: Drawable[];
+let redoStack: Drawable[];
+let currentLine: MarkerLine | null;
+let currentThickness: number;
+let toolPreview: ToolPreview | null;
+let activeStickerCommand: Command | null;
+
+/*
+ * Types
+ */
 
 // command interface
 type Command = {
@@ -151,14 +167,9 @@ class PlaceStickerCommand implements Command {
   }
 }
 
-// merge drawing state and tools
-let drawing = false;
-let drawables: Drawable[] = [];
-let redoStack: Drawable[] = [];
-let currentLine: MarkerLine | null = null;
-let currentThickness = 2;
-let toolPreview: ToolPreview | null = new ToolPreview(currentThickness, currentColor);
-let activeStickerCommand: Command | null = null;
+/*
+ * Functions
+ */
 
 // initializes sticker buttons
 function createStickerButtons() {
@@ -173,15 +184,13 @@ function createStickerButtons() {
   });
 }
 
-createStickerButtons(); // initialize with default stickers
-
-addStickerButton.addEventListener("click", () => {
+function addCustomSticker() {
   const customSticker = prompt("Enter a custom sticker emoji:");
   if (customSticker) {
     stickers.push(customSticker);
     createStickerButtons(); // recreate sticker buttons with new addition
   }
-});
+}
 
 function startDrawing(event: MouseEvent) {
   if (activeStickerCommand) return; // skip if in sticker mode
@@ -225,17 +234,14 @@ canvas.addEventListener("drawing-changed", () => {
   toolPreview?.display(ctx!);
 });
 
-canvas.addEventListener("mousedown", startDrawing);
-canvas.addEventListener("mouseup", stopDrawing);
-canvas.addEventListener("mousemove", (event) => {
+function drawingHandleMouseMoveEvent(event: MouseEvent) {
   if (activeStickerCommand) {
     applyStickerCommand();
   } else {
     addPointToLine(event);
     updateToolPreview(event);
   }
-});
-canvas.addEventListener("mouseout", stopDrawing);
+}
 
 // rotate current sticker on pressing R key
 globalThis.addEventListener("keydown", (event) => {
@@ -258,7 +264,7 @@ function randomizeNextTool() {
 }
 
 // undo
-undoButton.addEventListener("click", () => {
+function undoDrawingCommand() {
   if (drawables.length > 0) {
     const lastLine = drawables.pop();
     if (lastLine) {
@@ -267,10 +273,10 @@ undoButton.addEventListener("click", () => {
     }
   }
   undoButton.blur();
-});
+}
 
 // redo
-redoButton.addEventListener("click", () => {
+function redoDrawingCommand() {
   if (redoStack.length > 0) {
     const lastUndo = redoStack.pop();
     if (lastUndo) {
@@ -279,18 +285,18 @@ redoButton.addEventListener("click", () => {
     }
   }
   redoButton.blur();
-});
+}
 
 // clear
-clearButton.addEventListener("click", () => {
+function clearDrawing() {
   drawables = [];
   redoStack = [];
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
   clearButton.blur();
-});
+}
 
 // export canvas to PNG
-exportButton.addEventListener("click", () => {
+function exportCanvasToPNG() {
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = 1024;
   exportCanvas.height = 1024;
@@ -307,23 +313,23 @@ exportButton.addEventListener("click", () => {
     downloadLink.download = "sketchpad_export.png";
     downloadLink.click();
   }
-});
+}
 
 // thin thickness
-thinButton.addEventListener("click", () => {
+function useThinMarker() {
   currentThickness = 2;
   activeStickerCommand = null;
   highlightButton(thinButton);
   randomizeNextTool(); 
-});
+}
 
 // thick thickness
-thickButton.addEventListener("click", () => {
+function useThickMarker() {
   currentThickness = 8;
   activeStickerCommand = null;
   highlightButton(thickButton);
   randomizeNextTool(); 
-});
+}
 
 // highlight button when selected
 function highlightButton(button: HTMLButtonElement) {
@@ -381,5 +387,37 @@ function fireToolMovedEvent() {
   canvas.dispatchEvent(new Event("tool-moved"));
 }
 
-// defaults to thin marker
-thinButton.click();
+/*
+ * Initialization
+ */
+
+function initializeApp() {
+  addStickerButton.addEventListener("click", addCustomSticker);
+  canvas.addEventListener("mousedown", startDrawing);
+  canvas.addEventListener("mouseup", stopDrawing);
+  canvas.addEventListener("mousemove", drawingHandleMouseMoveEvent);
+  canvas.addEventListener("mouseout", stopDrawing);
+  undoButton.addEventListener("click", undoDrawingCommand);
+  redoButton.addEventListener("click", redoDrawingCommand);
+  clearButton.addEventListener("click", clearDrawing);
+  exportButton.addEventListener("click", exportCanvasToPNG);
+  thinButton.addEventListener("click", useThinMarker);
+  thickButton.addEventListener("click", useThickMarker);
+
+  currentColor = getRandomColor();
+  currentRotation = 0; // default rotation
+  drawing = false;
+  drawables = [];
+  redoStack = [];
+  currentLine = null;
+  currentThickness = 2;
+  toolPreview = new ToolPreview(currentThickness, currentColor);
+  activeStickerCommand = null;
+  
+  createStickerButtons(); // initialize with default stickers
+  
+  // defaults to thin marker
+  useThinMarker();
+}
+
+initializeApp();
