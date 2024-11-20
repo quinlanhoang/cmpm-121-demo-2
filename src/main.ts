@@ -2,6 +2,7 @@ import "./style.css";
 
 /*
  * Globals
+ * Define canvas, buttons, sticker options, and variables to manage drawing state
  */
 
 const stickers = ["😀", "🥳", "🎉", "🔥", "🦁"];
@@ -27,7 +28,8 @@ let toolPreview: ToolPreview | null;
 let activeStickerCommand: Command | null;
 
 /*
- * Types
+ * Types and Classes
+ * Define types for commands and Drawable objects. Classes include MarkerLine, ToolPreview, and Sticker.
  */
 
 type Command = {
@@ -161,7 +163,8 @@ class PlaceStickerCommand implements Command {
 }
 
 /*
- * Functions
+ * Functions for Tool Management and Drawing
+ * These functions handle user interactions with the tools and canvas.
  */
 
 function createStickerButtons() {
@@ -188,6 +191,8 @@ function addCustomSticker() {
   }
 }
 
+
+// Start drawing a new line
 function startDrawing(event: MouseEvent) {
   if (activeStickerCommand) return;
 
@@ -206,7 +211,7 @@ function stopDrawing() {
   toolPreview?.setActive(true);
   randomizeNextTool();
 }
-
+// Add points to the line being drawn
 function addPointToLine(event: MouseEvent) {
   if (!drawing || !currentLine) return;
   const rect = canvas.getBoundingClientRect();
@@ -222,6 +227,7 @@ function updateToolPreview(event: MouseEvent) {
   }
 }
 
+// Redraw the canvas
 function redrawCanvas() {
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
   drawables.forEach(element => element.display(ctx!));
@@ -257,6 +263,10 @@ function randomizeNextTool() {
   currentColor = getRandomColor();
   toolPreview = new ToolPreview(currentThickness, currentColor); // update preview with new color
 }
+
+/*
+ * Undo/Redo, Clear, and Export
+ */
 
 function undoDrawingCommand() {
   if (drawables.length > 0) {
@@ -375,6 +385,7 @@ function fireToolMovedEvent() {
 
 /*
  * Initialization
+ * Set up event listeners and initialize tools.
  */
 
 function initializeApp() {
