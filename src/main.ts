@@ -4,7 +4,6 @@ import "./style.css";
  * Globals
  */
 
-// sticker array with initial emojis
 const stickers = ["😀", "🥳", "🎉", "🔥", "🦁"];
 const canvas = document.querySelector<HTMLCanvasElement>("#drawingCanvas")!;
 const undoButton = document.querySelector<HTMLButtonElement>("#undoButton")!;
@@ -17,7 +16,6 @@ const exportButton = document.querySelector<HTMLButtonElement>("#exportButton")!
 const stickerContainer = document.querySelector<HTMLDivElement>("#stickerContainer")!;
 const ctx = canvas.getContext("2d");
 
-// merge drawing state and tools
 let currentColor: string;
 let currentRotation: number;
 let drawing: boolean;
@@ -32,17 +30,14 @@ let activeStickerCommand: Command | null;
  * Types
  */
 
-// command interface
 type Command = {
   execute: (ctx: CanvasRenderingContext2D, x: number, y: number) => void;
 };
 
-// interface for displayable elements on canvas
 interface Drawable {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-// represents lines drawn with marker tool
 class MarkerLine implements Drawable {
   private points: { x: number; y: number }[] = [];
   private thickness: number;
@@ -75,7 +70,6 @@ class MarkerLine implements Drawable {
   }
 }
 
-// tool previewing during drawing
 class ToolPreview {
   private x: number;
   private y: number;
@@ -112,7 +106,6 @@ class ToolPreview {
   }
 }
 
-// represents a sticker on the canvas
 class Sticker implements Drawable {
   private emoji: string;
   private x: number;
@@ -171,29 +164,32 @@ class PlaceStickerCommand implements Command {
  * Functions
  */
 
-// initializes sticker buttons
 function createStickerButtons() {
-  stickerContainer.innerHTML = ""; // clear existing buttons
   stickers.forEach(emoji => {
     const button = document.createElement("button");
     button.textContent = emoji;
     button.className = "tool-button";
     button.addEventListener("click", (event) =>
-      setStickerMode(new PlaceStickerCommand(emoji), event));
+      useSticker(new PlaceStickerCommand(emoji), event));
     stickerContainer.appendChild(button);
   });
+}
+
+function updateStickerButtons() {
+  stickerContainer.innerHTML = "";
+  createStickerButtons();
 }
 
 function addCustomSticker() {
   const customSticker = prompt("Enter a custom sticker emoji:");
   if (customSticker) {
     stickers.push(customSticker);
-    createStickerButtons(); // recreate sticker buttons with new addition
+    updateStickerButtons();
   }
 }
 
 function startDrawing(event: MouseEvent) {
-  if (activeStickerCommand) return; // skip if in sticker mode
+  if (activeStickerCommand) return;
 
   drawing = true;
   const rect = canvas.getBoundingClientRect();
@@ -201,7 +197,7 @@ function startDrawing(event: MouseEvent) {
   drawables.push(currentLine);
   redoStack = [];
   toolPreview?.setActive(false);
-  randomizeNextTool(); // randomizes color/rotation for the next use
+  randomizeNextTool();
 }
 
 function stopDrawing() {
@@ -218,7 +214,6 @@ function addPointToLine(event: MouseEvent) {
   canvas.dispatchEvent(new Event("drawing-changed"));
 }
 
-// update tool preview position
 function updateToolPreview(event: MouseEvent) {
   if (!drawing && toolPreview) {
     const rect = canvas.getBoundingClientRect();
@@ -227,12 +222,11 @@ function updateToolPreview(event: MouseEvent) {
   }
 }
 
-// redraws canvas when a change occurs
-canvas.addEventListener("drawing-changed", () => {
+function redrawCanvas() {
   ctx?.clearRect(0, 0, canvas.width, canvas.height);
   drawables.forEach(element => element.display(ctx!));
   toolPreview?.display(ctx!);
-});
+}
 
 function drawingHandleMouseMoveEvent(event: MouseEvent) {
   if (activeStickerCommand) {
@@ -243,27 +237,27 @@ function drawingHandleMouseMoveEvent(event: MouseEvent) {
   }
 }
 
-// rotate current sticker on pressing R key
-globalThis.addEventListener("keydown", (event) => {
+function rotateCurrentSticker() {
+  currentRotation = (currentRotation + 90) % 360;
+}
+
+function drawingHandleKeyEvent(event: KeyboardEvent) {
   if ((event.key === 'R' || event.key === 'r') && activeStickerCommand instanceof PlaceStickerCommand) {
-    currentRotation = (currentRotation + 90) % 360; // rotate the active tool preview
+    rotateCurrentSticker();
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
-});
+}
 
-// utility function to generate random rainbow color
 function getRandomColor(): string {
   const hue = Math.floor(Math.random() * 360); // full spectrum
   return `hsl(${hue}, 100%, 50%)`; // full saturation and medium lightness for bright colors
 }
 
-// utility function for randomizing tool attributes
 function randomizeNextTool() {
   currentColor = getRandomColor();
   toolPreview = new ToolPreview(currentThickness, currentColor); // update preview with new color
 }
 
-// undo
 function undoDrawingCommand() {
   if (drawables.length > 0) {
     const lastLine = drawables.pop();
@@ -275,7 +269,6 @@ function undoDrawingCommand() {
   undoButton.blur();
 }
 
-// redo
 function redoDrawingCommand() {
   if (redoStack.length > 0) {
     const lastUndo = redoStack.pop();
@@ -287,7 +280,6 @@ function redoDrawingCommand() {
   redoButton.blur();
 }
 
-// clear
 function clearDrawing() {
   drawables = [];
   redoStack = [];
@@ -295,7 +287,6 @@ function clearDrawing() {
   clearButton.blur();
 }
 
-// export canvas to PNG
 function exportCanvasToPNG() {
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = 1024;
@@ -315,7 +306,6 @@ function exportCanvasToPNG() {
   }
 }
 
-// thin thickness
 function useThinMarker() {
   currentThickness = 2;
   activeStickerCommand = null;
@@ -323,7 +313,6 @@ function useThinMarker() {
   randomizeNextTool(); 
 }
 
-// thick thickness
 function useThickMarker() {
   currentThickness = 8;
   activeStickerCommand = null;
@@ -331,7 +320,6 @@ function useThickMarker() {
   randomizeNextTool(); 
 }
 
-// highlight button when selected
 function highlightButton(button: HTMLButtonElement) {
   thinButton.classList.remove("selectedTool");
   thickButton.classList.remove("selectedTool");
@@ -342,8 +330,7 @@ function highlightButton(button: HTMLButtonElement) {
   button.classList.add("selectedTool");
 }
 
-// switches to sticker mode
-function setStickerMode(command: Command, event?: Event) {
+function useSticker(command: Command, event?: Event) {
   activeStickerCommand = command;
   toolPreview?.setActive(false);
   const stickerButtons = document.querySelectorAll(".sticker-panel .tool-button");
@@ -382,7 +369,6 @@ function applyStickerCommand() {
   fireToolMovedEvent();
 }
 
-// signal a change to tool state
 function fireToolMovedEvent() {
   canvas.dispatchEvent(new Event("tool-moved"));
 }
@@ -392,6 +378,8 @@ function fireToolMovedEvent() {
  */
 
 function initializeApp() {
+  canvas.addEventListener("drawing-changed", redrawCanvas);
+  globalThis.addEventListener("keydown", drawingHandleKeyEvent);
   addStickerButton.addEventListener("click", addCustomSticker);
   canvas.addEventListener("mousedown", startDrawing);
   canvas.addEventListener("mouseup", stopDrawing);
@@ -405,7 +393,7 @@ function initializeApp() {
   thickButton.addEventListener("click", useThickMarker);
 
   currentColor = getRandomColor();
-  currentRotation = 0; // default rotation
+  currentRotation = 0;
   drawing = false;
   drawables = [];
   redoStack = [];
@@ -414,9 +402,8 @@ function initializeApp() {
   toolPreview = new ToolPreview(currentThickness, currentColor);
   activeStickerCommand = null;
   
-  createStickerButtons(); // initialize with default stickers
+  createStickerButtons();
   
-  // defaults to thin marker
   useThinMarker();
 }
 
